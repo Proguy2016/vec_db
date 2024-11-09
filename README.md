@@ -16,8 +16,8 @@ The key components of the project include:
 
 To get started with the project, follow these steps:
 1. Clone the repository to your local machine.
-2. Run the provided code and then implement another class for VecDB as per the project requirements.
-3. Customize the code and add any additional features as needed.
+2. Run the provided code (which is almost the worst implementation of DB) and then edit/update the VecDB class as per the project requirements.
+3. Customize the code and add any additional features as needed. However, avoid modifying the DB_SEED_NUMBER, or the VecDB.\_\_init__ & VecDB.retrieve method signature.
 4. Run the evaluation to assess the accuracy of your implementation. The final evaluation will use the 'eval' function, but I wil update the 'run_queries' function.
 
 ## Usage
@@ -25,15 +25,14 @@ To get started with the project, follow these steps:
 The project provides a `VecDB` class that you can use to interact with the vectorized database. Here's an example of how to use it:
 
 ```python
-from VecDB import VecDB
+import numpy as np
+from vec_db import VecDB
 
-# Create an instance of VecDB
-db = VecDB()
-
-db.generate_database(10**4)
+# Create an instance of VecDB and random DB of size 10K
+db = VecDB(db_size = 10**4)
 
 # Retrieve similar images for a given query
-query_vector = [0.7, 0.8, 0.9, ...]  # Query vector of dimension 70
+query_vector = np.random.rand(1,70) # Query vector of dimension 70
 similar_images = db.retrieve(query_vector, top_k=5)
 print(similar_images)
 ```
