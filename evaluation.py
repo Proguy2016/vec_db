@@ -1,12 +1,9 @@
+# This snippet of code is to show you a simple evaluate for VecDB class, but the full evaluation for project on the Notebook shared with you.
 import numpy as np
-from worst_case_implementation import VecDBWorst
+from vec_db import VecDB
 import time
 from dataclasses import dataclass
 from typing import List
-
-AVG_OVERX_ROWS = 10
-DIMENSION = 70
-
 
 @dataclass
 class Result:
@@ -39,7 +36,7 @@ def eval(results: List[Result]):
     run_time = []
     for res in results:
         run_time.append(res.run_time)
-        # case for retireving number not equal to top_k, socre will be the lowest
+        # case for retrieving number not equal to top_k, score will be the lowest
         if len(set(res.db_ids)) != res.top_k or len(res.db_ids) != res.top_k:
             scores.append( -1 * len(res.actual_ids) * res.top_k)
             continue
@@ -57,38 +54,9 @@ def eval(results: List[Result]):
 
 
 if __name__ == "__main__":
-    db = VecDBWorst()
-    db.generate_database(100)
+    db = VecDB(db_size = 10**2)
 
     all_db = db.get_all_rows()
 
     res = run_queries(db, all_db, 5, 10)
     print(eval(res))
-
-    
-    records_np = np.random.random((900, DIMENSION))
-    db.insert_records(records_np)
-    res = run_queries(db, records_np, 5, 10)
-    print(eval(res))
-
-    # records_np = records_np, np.random.random((900000, 70))
-    # db.insert_records(records_dict)
-    # res = run_queries(db, records_np, 5, 10)
-    # eval(res)
-
-    # records_np = records_np, np.random.random((4000000, 70))
-    # db.insert_records(records_dict)
-    # res = run_queries(db, records_np, 5, 10)
-    # eval(res)
-
-    # records_np = records_np, np.random.random((5000000, 70))
-    # db.insert_records(records_dict)
-    # res = run_queries(db, records_np, 5, 10)
-    # eval(res)
-
-    # records_np = records_np, np.random.random((5000000, 70))
-    # db.insert_records(records_dict)
-    # res = run_queries(db, records_np, 5, 10)
-    # eval(res)
-
-    

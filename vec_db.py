@@ -47,7 +47,7 @@ class VecDB:
         try:
             offset = row_num * DIMENSION * ELEMENT_SIZE
             mmap_vector = np.memmap(self.db_path, dtype=np.float32, mode='r', shape=(1, DIMENSION), offset=offset)
-            return np.array(mmap_vector)
+            return np.array(mmap_vector[0])
         except Exception as e:
             return f"An error occurred: {e}"
 
@@ -57,7 +57,7 @@ class VecDB:
         vectors = np.memmap(self.db_path, dtype=np.float32, mode='r', shape=(num_records, DIMENSION))
         return np.array(vectors)
     
-    def retrieve(self, query: Annotated[List[float], DIMENSION], top_k = 5):
+    def retrieve(self, query: Annotated[np.ndarray, (1, DIMENSION)], top_k = 5):
         scores = []
         num_records = self._get_num_records()
         # here we assume that the row number is the ID of each vector
