@@ -13,7 +13,7 @@ VECTOR_DTYPE = np.float32  # Avoid aggressive quantization per TA feedback
 
 class VecDB:
     def __init__(self, database_file_path="saved_db.dat", index_file_path="index.dat", new_db=True, db_size=None,
-                 n_clusters=None, n_probe=None, build_batch_size=100000):
+                 n_clusters=None, n_probe=None):
         """
         Initializes the VecDB.
         
@@ -24,6 +24,7 @@ class VecDB:
         - n_clusters: rows/1000 for up to 1M rows, sqrt(rows) for over 1M rows
         - n_probe: sqrt(n_clusters) for good recall/speed tradeoff
         """
+        self.build_batch_size = 100000
         self.db_path = database_file_path
         
         # Define file paths for the index components
