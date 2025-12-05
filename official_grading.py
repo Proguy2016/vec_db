@@ -14,7 +14,7 @@ TEAM_NUMBER = "YOUR_TEAM_NUMBER"  # Update this
 
 # Paths - Update these to match your setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PATH_DB_VECTORS_20M = os.path.join(BASE_DIR, "db_vectors_20m.dat")
+PATH_DB_VECTORS_20M = os.path.join(BASE_DIR, "OpenSubtitles_en_20M_emb_64.dat")
 PATH_DB_VECTORS_10M = os.path.join(BASE_DIR, "db_vectors_10m.dat")
 PATH_DB_VECTORS_1M = os.path.join(BASE_DIR, "db_vectors_1m.dat")
 PATH_DB_20M = os.path.join(BASE_DIR, "index_20m.dat")
