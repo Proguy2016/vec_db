@@ -39,17 +39,19 @@ class VecDB:
                 raise ValueError("You need to provide the size of the database")
             
             # Determine n_clusters based on db_size if not provided.
-            # pgvector rule of thumb: rows/1000 for <=1M rows, sqrt(rows) for >1M rows
+            # More clusters = smaller clusters = can probe more while staying under RAM limit
             if n_clusters is None:
                 if db_size <= 1_000_000:
                     self.n_clusters = max(100, db_size // 1000)
                 else:
-                    self.n_clusters = max(1000, int(math.sqrt(db_size)))
+                    # Use 8000 clusters for large DBs to allow higher n_probe
+                    self.n_clusters = 8000
             else:
                 self.n_clusters = n_clusters
             
-            # n_probe: TA suggests ~66 as starting point for 64-dim vectors
-            self.n_probe = n_probe if n_probe is not None else 66
+            # n_probe: with 8000 clusters, avg cluster = 2500 vectors
+            # 35 probes × 2500 × 64 × 4 bytes ≈ 22MB (safe under 50MB)
+            self.n_probe = n_probe if n_probe is not None else 35
                 
             # delete the old DB file if exists
             if os.path.exists(self.db_path):
@@ -59,10 +61,24 @@ class VecDB:
             self.generate_database(db_size)
         else:
             # If using an existing DB, load the metadata.
-            # This is allowed as it's a small, fixed-size value. [cite: 109]
             self._load_meta()
-            # n_probe: TA suggests ~66 as starting point for 64-dim vectors
-            self.n_probe = n_probe if n_probe is not None else 66
+            
+            # Determine n_probe based on DB size to meet RAM constraints:
+            # 1M: 20MB limit → n_probe ~8
+            # 10M+: 50MB limit → n_probe ~35
+            if n_probe is not None:
+                self.n_probe = n_probe
+            else:
+                # Get DB size to determine appropriate n_probe
+                db_size = self._get_num_records()
+                if db_size <= 1_000_000:
+                    # 1M: 20MB RAM limit - very conservative
+                    self.n_probe = 8
+                elif db_size <= 5_000_000:
+                    self.n_probe = 15
+                else:
+                    # 10M, 15M, 20M: 50MB RAM limit
+                    self.n_probe = 35
 
     def _load_meta(self):
         """Loads small metadata from disk."""
@@ -308,14 +324,18 @@ class VecDB:
         if not candidate_ids:
             return []
 
-        # --- 4. Re-ranking: Score only the candidates (batch read for speed) ---
-        candidate_list = np.array(list(candidate_ids), dtype=np.int32)
+        # --- 4. Re-ranking: Score only the candidates ---
+        candidate_list = sorted(candidate_ids)  # Sort for sequential disk access
+        num_candidates = len(candidate_list)
         
-        # Read all candidate vectors at once using memmap indexing
-        num_records = self._get_num_records()
-        mmap_vectors = np.memmap(self.db_path, dtype=VECTOR_DTYPE, mode='r', shape=(num_records, DIMENSION))
-        candidate_vectors = np.array(mmap_vectors[candidate_list], dtype=np.float32)  # Convert to float32 for computation
-        del mmap_vectors  # Release memmap
+        # Read candidate vectors directly from file (avoids memmap RSS bloat)
+        candidate_vectors = np.zeros((num_candidates, DIMENSION), dtype=np.float32)
+        vector_size = DIMENSION * ELEMENT_SIZE
+        
+        with open(self.db_path, 'rb') as f:
+            for i, vec_id in enumerate(candidate_list):
+                f.seek(int(vec_id) * vector_size)  # Cast to int to avoid overflow
+                candidate_vectors[i] = np.frombuffer(f.read(vector_size), dtype=VECTOR_DTYPE)
         
         # Vectorized cosine similarity computation
         query_float = query.astype(np.float32).flatten()
