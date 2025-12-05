@@ -10,7 +10,10 @@ This will:
 import numpy as np
 import os
 import time
-from vec_db import VecDB, DIMENSION, VECTOR_DTYPE, DB_SEED_NUMBER
+from vec_db import VecDB, DIMENSION, DB_SEED_NUMBER
+
+# Define VECTOR_DTYPE locally (matches vec_db.py's np.float32 usage)
+VECTOR_DTYPE = np.float32
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -67,23 +70,18 @@ def build_index_only(db_path, index_path, n_clusters):
     print(f"  Records: {num_records:,}")
     
     # Create a temporary VecDB with the paths set correctly
+    # Must match VecDB's attribute names exactly
     class IndexBuilder:
         def __init__(self):
             self.db_path = db_path
-            self.base_index_path = index_path
-            self.meta_path = index_path + ".meta.json"
-            self.centroids_path = index_path + ".centroids.npy"
-            self.index_data_path = index_path + ".data"
-            self.n_clusters = n_clusters
-            self.build_batch_size = 100_000
+            self.index_path = index_path
+            # Match VecDB's derived paths exactly
+            self.centroids_path = index_path + "_centroids.npy"
+            self.meta_path = index_path + "_meta.npy"
+            self.inverted_idx_path = index_path + "_ids.bin"
         
         def _get_num_records(self):
             return os.path.getsize(self.db_path) // (DIMENSION * np.dtype(VECTOR_DTYPE).itemsize)
-        
-        def _save_meta(self):
-            import json
-            with open(self.meta_path, 'w') as f:
-                json.dump({'n_clusters': self.n_clusters}, f)
     
     # Import the build method from VecDB
     builder = IndexBuilder()
@@ -150,14 +148,35 @@ def compute_ground_truth(db_path, queries, top_k=1000):
     return all_sorted_ids
 
 
+def generate_20m_database(path, size=20_000_000):
+    """Generate the 20M database with random vectors."""
+    print(f"Generating {size:,} vectors database...")
+    rng = np.random.default_rng(DB_SEED_NUMBER)
+    
+    # Generate in chunks to avoid memory issues
+    chunk_size = 1_000_000
+    
+    # Create the file
+    mmap = np.memmap(path, dtype=VECTOR_DTYPE, mode='w+', shape=(size, DIMENSION))
+    
+    for i in range(0, size, chunk_size):
+        end = min(i + chunk_size, size)
+        mmap[i:end] = rng.random((end - i, DIMENSION), dtype=np.float32)
+        print(f"  Generated {end:,} / {size:,} vectors")
+    
+    mmap.flush()
+    del mmap
+    print(f"  Done! Saved to {path}")
+
+
 def main():
     print("=" * 60)
     print("VecDB Evaluation Setup")
     print("=" * 60)
     
-    # Step 1: Check 20M database exists
+    # Step 1: Check/Generate 20M database
     print("\n" + "=" * 40)
-    print("Step 1: Check 20M database")
+    print("Step 1: Check/Generate 20M database")
     print("=" * 40)
     
     if os.path.exists(PATH_DB_VECTORS_20M):
@@ -167,9 +186,9 @@ def main():
         print(f"  Size: {file_size / (1024**3):.2f} GB")
         print(f"  Records: {num_records:,}")
     else:
-        print(f"ERROR: 20M database not found: {PATH_DB_VECTORS_20M}")
-        print("Please ensure OpenSubtitles_en_20M_emb_64.dat exists in the vec_db folder.")
-        return
+        print(f"20M database not found: {PATH_DB_VECTORS_20M}")
+        print("Generating it now...")
+        generate_20m_database(PATH_DB_VECTORS_20M)
     
     # Step 2: Create subsets
     print("\n" + "=" * 40)
