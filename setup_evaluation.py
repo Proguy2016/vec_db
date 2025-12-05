@@ -1,8 +1,8 @@
 """
 Setup script to generate all databases and indices for VecDB evaluation.
 This will:
-1. Generate 20M vectors database
-2. Create 1M and 10M subsets
+1. Use existing OpenSubtitles_en_20M_emb_64.dat as 20M database
+2. Create 1M and 10M subsets from it
 3. Build indices for all three
 4. Generate ground truth for evaluation queries
 """
@@ -15,8 +15,8 @@ from vec_db import VecDB, DIMENSION, VECTOR_DTYPE, DB_SEED_NUMBER
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Database paths
-PATH_DB_VECTORS_20M = os.path.join(BASE_DIR, "db_vectors_20m.dat")
+# Database paths - use OpenSubtitles as the 20M source
+PATH_DB_VECTORS_20M = os.path.join(BASE_DIR, "OpenSubtitles_en_20M_emb_64.dat")
 PATH_DB_VECTORS_10M = os.path.join(BASE_DIR, "db_vectors_10m.dat")
 PATH_DB_VECTORS_1M = os.path.join(BASE_DIR, "db_vectors_1m.dat")
 
@@ -155,33 +155,21 @@ def main():
     print("VecDB Evaluation Setup")
     print("=" * 60)
     
-    # Step 1: Generate 20M database
+    # Step 1: Check 20M database exists
     print("\n" + "=" * 40)
-    print("Step 1: Generate 20M database")
+    print("Step 1: Check 20M database")
     print("=" * 40)
     
     if os.path.exists(PATH_DB_VECTORS_20M):
-        print(f"20M database already exists: {PATH_DB_VECTORS_20M}")
+        file_size = os.path.getsize(PATH_DB_VECTORS_20M)
+        num_records = file_size // (DIMENSION * np.dtype(VECTOR_DTYPE).itemsize)
+        print(f"Found 20M database: {PATH_DB_VECTORS_20M}")
+        print(f"  Size: {file_size / (1024**3):.2f} GB")
+        print(f"  Records: {num_records:,}")
     else:
-        print("Generating 20M vectors...")
-        rng = np.random.default_rng(DB_SEED_NUMBER)
-        
-        # Generate in chunks to avoid memory issues
-        chunk_size = 1_000_000
-        total_size = 20_000_000
-        
-        # Create the file
-        mmap = np.memmap(PATH_DB_VECTORS_20M, dtype=VECTOR_DTYPE, mode='w+', 
-                         shape=(total_size, DIMENSION))
-        
-        for i in range(0, total_size, chunk_size):
-            end = min(i + chunk_size, total_size)
-            mmap[i:end] = rng.random((end - i, DIMENSION), dtype=np.float32)
-            print(f"  Generated {end:,} / {total_size:,} vectors")
-        
-        mmap.flush()
-        del mmap
-        print("  Done generating 20M database!")
+        print(f"ERROR: 20M database not found: {PATH_DB_VECTORS_20M}")
+        print("Please ensure OpenSubtitles_en_20M_emb_64.dat exists in the vec_db folder.")
+        return
     
     # Step 2: Create subsets
     print("\n" + "=" * 40)
